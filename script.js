@@ -68,6 +68,7 @@ const routes = { nairobi: Object.keys(oneWayFareByCity) };
 Object.keys(oneWayFareByCity).forEach((city) => {
   routes[city] = ["nairobi"];
 });
+const allCities = Array.from(fromField.options, (option) => option.value.toLowerCase()).filter(Boolean);
 const whatsappNumber = "254762108773";
 
 function closeMobileNav() {
@@ -234,7 +235,7 @@ function updateDestinationAvailability() {
   fromField.setCustomValidity("");
   toField.setCustomValidity("");
   const origin = fromField.value.trim().toLowerCase();
-  const destinations = routes[origin] || [];
+  const destinations = origin ? routes[origin] || [] : allCities;
   const destination = toField.value.trim().toLowerCase();
   toField.replaceChildren(new Option("Select city", ""));
   destinations.forEach((city) => {
@@ -275,6 +276,7 @@ function updateFareEstimate() {
 
 fromField.addEventListener("change", updateDestinationAvailability);
 toField.addEventListener("change", updateDestinationAvailability);
+updateDestinationAvailability();
 
 swapButton.addEventListener("click", () => {
   if (swapButton.disabled) return;
