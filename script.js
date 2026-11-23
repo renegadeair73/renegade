@@ -425,7 +425,7 @@ function updateBookingRequestLink() {
     `Email: ${enquiry.get("email").toString().trim()}`,
     `Special requests: ${enquiry.get("specialRequest").toString().trim() || "None"}`,
     "",
-    "Please confirm availability and the final fare. This is a request, not a confirmed ticket.",
+    "Please confirm availability and the final fare.",
   ].join("\n");
   confirmBookingButton.href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(request)}`;
 }
