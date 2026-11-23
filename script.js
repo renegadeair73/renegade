@@ -115,7 +115,7 @@ const oneWayFareByCity = {
   lodwar: 10000,
   lamu: 10000,
   migori: 7000,
-  garissa: 13000,
+  garissa: 8000,
 };
 const routes = { nairobi: Object.keys(oneWayFareByCity) };
 Object.keys(oneWayFareByCity).forEach((city) => {
