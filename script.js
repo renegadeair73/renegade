@@ -109,6 +109,13 @@ const oneWayFareByCity = {
   homabay: 7800,
   wajir: 9000,
   "maasai mara": 10500,
+  "ukunda (diani)": 8000,
+  malindi: 8000,
+  kitale: 6000,
+  lodwar: 10000,
+  lamu: 10000,
+  migori: 7000,
+  garissa: 13000,
 };
 const routes = { nairobi: Object.keys(oneWayFareByCity) };
 Object.keys(oneWayFareByCity).forEach((city) => {
