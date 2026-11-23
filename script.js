@@ -412,9 +412,9 @@ function updateBookingRequestLink() {
     `Passengers: ${passengerCount} Passenger${passengerCount === 1 ? "" : "s"}`,
     `Total (estimate): KSh ${formatFare(fareQuote.total)}`,
     `Seats: ${seats}`,
-    `Flight: Renegade Air (${selectedFlight.departure} - ${selectedFlight.arrival}, sample schedule)`,
+    `Flight: Renegade Air (${selectedFlight.departure} - ${selectedFlight.arrival})`,
     ...(tripType.value === "roundtrip"
-      ? [`Return flight: Renegade Air (${selectedFlight.returnDeparture} - ${selectedFlight.returnArrival}, sample schedule)`]
+      ? [`Return flight: Renegade Air (${selectedFlight.returnDeparture} - ${selectedFlight.returnArrival})`]
       : []),
     "",
     "Passenger details (lead passenger):",
