@@ -3,9 +3,15 @@ const primaryNav = document.getElementById("primaryNav");
 const navDropdownToggles = primaryNav.querySelectorAll(".nav-dropdown-toggle");
 const flightTab = document.getElementById("flightTab");
 const reservationTab = document.getElementById("reservationTab");
+const statusTab = document.getElementById("statusTab");
 const bookingShell = document.querySelector(".booking-shell");
 const flightPanel = document.getElementById("flightPanel");
 const reservationPanel = document.getElementById("reservationPanel");
+const statusPanel = document.getElementById("statusPanel");
+const flightResults = document.getElementById("flightResults");
+const flightResultsSummary = document.getElementById("flightResultsSummary");
+const flightResultsList = document.getElementById("flightResultsList");
+const changeSearchButton = document.getElementById("changeSearchButton");
 const tripType = document.getElementById("tripType");
 const fromField = document.getElementById("flightFrom");
 const toField = document.getElementById("flightTo");
@@ -15,11 +21,24 @@ const returnDate = document.getElementById("returnDate");
 const returnField = document.getElementById("returnField");
 const passengerField = document.querySelector('[name="passengers"]');
 const fareEstimate = document.getElementById("fareEstimate");
+const flightEnquiry = document.getElementById("flightEnquiry");
+const flightEnquiryTitle = document.getElementById("flightEnquiryTitle");
+const flightEnquirySummary = document.getElementById("flightEnquirySummary");
+const flightEnquiryFare = document.getElementById("flightEnquiryFare");
+const flightEnquiryForm = document.getElementById("flightEnquiryForm");
+const changeFlightButton = document.getElementById("changeFlightButton");
+const seatSelection = document.getElementById("seatSelection");
+const seatSelectionTitle = document.getElementById("seatSelectionTitle");
+const seatSelectionSummary = document.getElementById("seatSelectionSummary");
+const seatMaps = document.getElementById("seatMaps");
+const seatSelectionStatus = document.getElementById("seatSelectionStatus");
+const confirmBookingButton = document.getElementById("confirmBookingButton");
+const backToDetailsButton = document.getElementById("backToDetailsButton");
+const bookingDialog = document.getElementById("bookingDialog");
+const closeBookingDialogButton = document.getElementById("closeBookingDialog");
 const couponToggle = document.getElementById("couponToggle");
 const couponCode = document.getElementById("couponCode");
 const couponCheck = document.getElementById("couponCheck");
-const flightMessage = document.getElementById("flightMessage");
-const flightMessageText = document.getElementById("flightMessageText");
 const couponMessage = document.getElementById("couponMessage");
 const couponMessageText = document.getElementById("couponMessageText");
 const reservationMessage = document.getElementById("reservationMessage");
@@ -55,6 +74,33 @@ const languageMenu = document.getElementById("languageMenu");
 const languageLabel = languageToggle.querySelector(".language-label");
 const utilityStatus = document.getElementById("utilityStatus");
 let lastLoginTrigger = null;
+let selectedFlight = null;
+const selectedSeats = new Map();
+
+function showBookingStage(stage, headingId) {
+  [flightResults, flightEnquiry, seatSelection].forEach((section) => {
+    section.hidden = section !== stage;
+  });
+  bookingDialog.setAttribute("aria-labelledby", headingId);
+  if (!bookingDialog.open) bookingDialog.showModal();
+}
+
+function resetBookingFlow() {
+  bookingShell.hidden = false;
+  [flightResults, flightEnquiry, seatSelection].forEach((section) => {
+    section.hidden = true;
+  });
+  selectedFlight = null;
+  selectedSeats.clear();
+  fromField.focus();
+}
+
+closeBookingDialogButton.addEventListener("click", () => bookingDialog.close());
+bookingDialog.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  bookingDialog.close();
+});
+bookingDialog.addEventListener("close", resetBookingFlow);
 
 const oneWayFareByCity = {
   eldoret: 5500,
@@ -69,6 +115,13 @@ Object.keys(oneWayFareByCity).forEach((city) => {
   routes[city] = ["nairobi"];
 });
 const allCities = Array.from(fromField.options, (option) => option.value.toLowerCase()).filter(Boolean);
+const airportCodes = {
+  nairobi: "NBO",
+  eldoret: "EDL",
+  kisumu: "KIS",
+  mombasa: "MBA",
+  wajir: "WJR",
+};
 const whatsappNumber = "254762108773";
 
 function closeMobileNav() {
@@ -207,17 +260,23 @@ loginDialog.addEventListener("close", () => {
 
 function selectTab(selectedTab) {
   const showFlights = selectedTab === flightTab;
-  bookingShell.classList.toggle("reservation-active", !showFlights);
+  const showReservation = selectedTab === reservationTab;
+  bookingShell.classList.toggle("reservation-active", showReservation);
+  bookingShell.classList.toggle("status-active", selectedTab === statusTab);
   flightTab.classList.toggle("active", showFlights);
-  reservationTab.classList.toggle("active", !showFlights);
+  reservationTab.classList.toggle("active", showReservation);
+  statusTab.classList.toggle("active", selectedTab === statusTab);
   flightTab.setAttribute("aria-selected", String(showFlights));
-  reservationTab.setAttribute("aria-selected", String(!showFlights));
+  reservationTab.setAttribute("aria-selected", String(showReservation));
+  statusTab.setAttribute("aria-selected", String(selectedTab === statusTab));
   flightPanel.hidden = !showFlights;
-  reservationPanel.hidden = showFlights;
+  reservationPanel.hidden = !showReservation;
+  statusPanel.hidden = selectedTab !== statusTab;
 }
 
 flightTab.addEventListener("click", () => selectTab(flightTab));
 reservationTab.addEventListener("click", () => selectTab(reservationTab));
+statusTab.addEventListener("click", () => selectTab(statusTab));
 document.querySelectorAll(".fare-option").forEach((option) => {
   option.addEventListener("click", () => {
     selectTab(flightTab);
@@ -272,6 +331,172 @@ function updateFareEstimate() {
   fareEstimate.textContent = quote
     ? `Estimated total: KSh ${formatFare(quote.total)}`
     : "Select a supported route to see an estimated fare.";
+}
+
+function formatAirportLabel(city) {
+  const normalizedCity = city.trim().toLowerCase();
+  const label = normalizedCity === "homabay"
+    ? "Homa Bay"
+    : city.trim().replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const code = airportCodes[normalizedCity];
+  return code ? `${label} (${code})` : label;
+}
+
+function updateFlightEnquirySummary(fareQuote) {
+  const passengerCount = fareQuote.passengerCount;
+  const returnSummary = tripType.value === "roundtrip"
+    ? ` and returning ${returnDate.value}`
+    : "";
+  flightEnquirySummary.textContent =
+    `${tripType.selectedOptions[0].textContent}: ${formatAirportLabel(fromField.value)} to ${formatAirportLabel(toField.value)} for ${passengerCount} passenger${passengerCount === 1 ? "" : "s"}, departing ${departDate.value}${returnSummary}.`;
+  flightEnquiryFare.textContent =
+    `From KSh ${formatFare(fareQuote.oneWayFare)} per passenger, one-way. Estimated total for this trip: KSh ${formatFare(fareQuote.total)}.`;
+}
+
+const flightOptions = [
+  { departure: "07:30", arrival: "09:00", returnDeparture: "15:30", returnArrival: "17:00" },
+  { departure: "12:30", arrival: "14:00", returnDeparture: "17:30", returnArrival: "19:00" },
+];
+const reservedSeats = new Set(["4B", "5C", "6B", "7A", "8D"]);
+const seatColumns = ["A", "B", "C", "D"];
+
+function getSeatLegs() {
+  const outboundSchedule = selectedFlight
+    ? ` · ${selectedFlight.departure} - ${selectedFlight.arrival}`
+    : "";
+  const legs = [{
+    id: "outbound",
+    label: `Outbound · ${departDate.value}${outboundSchedule} · ${formatAirportLabel(fromField.value)} to ${formatAirportLabel(toField.value)}`,
+  }];
+  if (tripType.value === "roundtrip") {
+    legs.push({
+      id: "return",
+      label: `Return · ${returnDate.value}${selectedFlight ? ` · ${selectedFlight.returnDeparture} - ${selectedFlight.returnArrival}` : ""} · ${formatAirportLabel(toField.value)} to ${formatAirportLabel(fromField.value)}`,
+    });
+  }
+  return legs;
+}
+
+function getSeatSelectionId() {
+  return tripType.value === "roundtrip" ? "both" : "outbound";
+}
+
+function updateBookingRequestLink() {
+  const passengerCount = Number(passengerField.value);
+  const legs = getSeatLegs();
+  const seatChoices = selectedSeats.get(getSeatSelectionId());
+  const hasAllSeats = seatChoices?.size === passengerCount;
+  confirmBookingButton.setAttribute("aria-disabled", String(!hasAllSeats));
+  confirmBookingButton.tabIndex = hasAllSeats ? 0 : -1;
+  if (!hasAllSeats || !selectedFlight) {
+    confirmBookingButton.href = "#";
+    return;
+  }
+
+  const enquiry = new FormData(flightEnquiryForm);
+  const selectedSeatLabels = Array.from(seatChoices).join(", ");
+  const seats = legs
+    .map((leg) => `${leg.label}: ${selectedSeatLabels}`)
+    .join("\n");
+  const request = [
+    "Hello Renegade Air, I would like to request this booking.",
+    `Trip: ${flightEnquirySummary.textContent}`,
+    `Selected departure: ${selectedFlight.departure} - ${selectedFlight.arrival}`,
+    ...(tripType.value === "roundtrip"
+      ? [`Selected return: ${selectedFlight.returnDeparture} - ${selectedFlight.returnArrival}`]
+      : []),
+    `Passengers: ${passengerCount}`,
+    `Seats:\n${seats}`,
+    `Estimated fare: KSh ${formatFare(selectedFlight.total)} (estimate only)`,
+    `Full name: ${enquiry.get("fullName").toString().trim()}`,
+    `Phone or WhatsApp: ${enquiry.get("phone").toString().trim()}`,
+    `Email: ${enquiry.get("email").toString().trim()}`,
+    `Passenger type: ${enquiry.get("passengerType")}`,
+    `Special request: ${enquiry.get("specialRequest").toString().trim() || "None"}`,
+    "Please confirm availability and the final fare. This is not a confirmed ticket.",
+  ].join("\n");
+  confirmBookingButton.href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(request)}`;
+}
+
+function renderSeatMaps() {
+  seatMaps.replaceChildren();
+  selectedSeats.clear();
+  const passengerCount = Number(passengerField.value);
+  const legs = getSeatLegs();
+  seatSelectionSummary.textContent =
+    `${formatAirportLabel(fromField.value)} to ${formatAirportLabel(toField.value)} · ${passengerCount} passenger${passengerCount === 1 ? "" : "s"}`;
+
+  const selectionId = getSeatSelectionId();
+  const selectionLabel = tripType.value === "roundtrip"
+    ? `Select once for both trips · Outbound ${departDate.value} · ${selectedFlight.departure} - ${selectedFlight.arrival} · Return ${returnDate.value} · ${selectedFlight.returnDeparture} - ${selectedFlight.returnArrival}`
+    : legs[0].label;
+  selectedSeats.set(selectionId, new Set());
+
+  const leg = {
+    id: selectionId,
+    label: selectionLabel,
+  };
+  const section = document.createElement("section");
+  section.className = "seat-map-section";
+  section.dataset.leg = leg.id;
+
+  const heading = document.createElement("h2");
+  heading.textContent = leg.label;
+  section.append(heading);
+
+  const count = document.createElement("p");
+  count.className = "seat-map-count";
+  count.dataset.seatCount = "";
+  count.textContent =
+    `Choose ${passengerCount} seat${passengerCount === 1 ? "" : "s"}${tripType.value === "roundtrip" ? " once for both trips" : ""}.`;
+  section.append(count);
+
+  const grid = document.createElement("div");
+  grid.className = "seat-map-grid";
+  grid.setAttribute("role", "group");
+  grid.setAttribute("aria-label", `${leg.label} seat choices`);
+
+  for (let row = 1; row <= 8; row += 1) {
+    seatColumns.forEach((column, index) => {
+      if (index === 2) {
+        const aisle = document.createElement("span");
+        aisle.className = "seat-aisle";
+        aisle.setAttribute("aria-hidden", "true");
+        grid.append(aisle);
+      }
+
+      const seat = `${row}${column}`;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "seat-button";
+      button.dataset.seat = seat;
+      button.dataset.leg = leg.id;
+      button.textContent = seat;
+      button.disabled = reservedSeats.has(seat);
+      button.setAttribute("aria-label", `${seat}, ${button.disabled ? "reserved" : "available"}`);
+      button.setAttribute("aria-pressed", "false");
+      grid.append(button);
+    });
+  }
+
+  section.append(grid);
+  seatMaps.append(section);
+
+  confirmBookingButton.setAttribute("aria-disabled", "true");
+  confirmBookingButton.tabIndex = -1;
+  confirmBookingButton.href = "#";
+  updateSeatSelectionStatus();
+}
+
+function updateSeatSelectionStatus(message) {
+  const passengerCount = Number(passengerField.value);
+  const seatCount = selectedSeats.get(getSeatSelectionId())?.size || 0;
+  const complete = seatCount === passengerCount;
+  seatSelectionStatus.textContent = message ||
+    `${seatCount} of ${passengerCount} seat${passengerCount === 1 ? "" : "s"} selected${tripType.value === "roundtrip" ? " · same seats apply to both trips" : ""}`;
+  confirmBookingButton.setAttribute("aria-disabled", String(!complete));
+  confirmBookingButton.tabIndex = complete ? 0 : -1;
+  updateBookingRequestLink();
 }
 
 fromField.addEventListener("change", updateDestinationAvailability);
@@ -374,21 +599,106 @@ document.getElementById("flightForm").addEventListener("submit", (event) => {
     return;
   }
   couponMessage.hidden = true;
-  const passengers = passengerField.selectedOptions[0].textContent.trim();
-  const request = [
-    "Hello Renegade Air, I would like to book a flight.",
-    `Trip: ${tripType.selectedOptions[0].textContent}`,
-    `From: ${fromField.value.trim()}`,
-    `To: ${toField.value.trim()}`,
-    `Departure: ${departDate.value}`,
-    ...(tripType.value === "roundtrip" ? [`Return: ${returnDate.value}`] : []),
-    `Passengers: ${passengers}`,
-    `Estimated total fare: KSh ${formatFare(fareQuote.total)}`,
-    `Calculation: ${fareQuote.passengerCount} passenger(s) x KSh ${formatFare(fareQuote.oneWayFare)} per passenger per leg x ${fareQuote.legs} leg(s)`,
-  ].join("\n");
-  flightMessageText.textContent = "Opening WhatsApp with your flight request. Review it and send to complete your inquiry.";
-  flightMessage.hidden = false;
-  window.location.assign(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(request)}`);
+  flightResultsSummary.textContent =
+    `${tripType.selectedOptions[0].textContent} · ${formatAirportLabel(fromField.value)} to ${formatAirportLabel(toField.value)} · ${passengerField.value} passenger${Number(passengerField.value) === 1 ? "" : "s"}`;
+  flightResultsList.replaceChildren();
+  flightOptions.forEach((option, index) => {
+    const card = document.createElement("article");
+    card.className = "flight-result-card";
+    card.innerHTML = `
+      <div class="flight-option-name">
+        <strong>Flight option ${index + 1}</strong>
+        <span>Sample schedule</span>
+      </div>
+      <div class="flight-result-time departure-time">
+        <strong>${option.departure}</strong>
+        <span>${formatAirportLabel(fromField.value)}</span>
+      </div>
+      <div class="flight-result-route" aria-label="Sample schedule">
+        <span>${tripType.value === "roundtrip"
+          ? `Return ${option.returnDeparture} - ${option.returnArrival}`
+          : "One-way"}</span>
+        <i></i>
+      </div>
+      <div class="flight-result-time arrival-time">
+        <strong>${option.arrival}</strong>
+        <span>${formatAirportLabel(toField.value)}</span>
+      </div>
+      <div class="flight-result-price">
+        <strong>KSh ${formatFare(fareQuote.total)}</strong>
+        <span>Estimated total for ${fareQuote.passengerCount} passenger${fareQuote.passengerCount === 1 ? "" : "s"}</span>
+      </div>
+      <button type="button" data-flight-index="${index}">Book Now</button>`;
+    flightResultsList.append(card);
+  });
+  bookingShell.hidden = true;
+  showBookingStage(flightResults, "flightResultsTitle");
+  document.getElementById("flightResultsTitle").focus();
+});
+
+changeSearchButton.addEventListener("click", () => {
+  bookingDialog.close();
+});
+
+flightResultsList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-flight-index]");
+  if (!button) return;
+  const flight = flightOptions[Number(button.dataset.flightIndex)];
+  const fareQuote = calculateFareQuote();
+  if (!flight || !fareQuote) return;
+
+  selectedFlight = flight;
+  selectedFlight.total = fareQuote.total;
+  selectedSeats.clear();
+  updateFlightEnquirySummary(fareQuote);
+  flightEnquiryFare.textContent =
+    `Selected schedule: ${flight.departure} - ${flight.arrival}. Estimated total: KSh ${formatFare(fareQuote.total)}.`;
+  renderSeatMaps();
+  showBookingStage(flightEnquiry, "flightEnquiryTitle");
+  flightEnquiryTitle.focus();
+});
+
+changeFlightButton.addEventListener("click", () => {
+  selectedFlight = null;
+  selectedSeats.clear();
+  showBookingStage(flightResults, "flightResultsTitle");
+  document.getElementById("flightResultsTitle").focus();
+});
+
+flightEnquiryForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (!selectedFlight) return;
+  showBookingStage(seatSelection, "seatSelectionTitle");
+  seatSelectionTitle.focus();
+});
+
+backToDetailsButton.addEventListener("click", () => {
+  showBookingStage(flightEnquiry, "flightEnquiryTitle");
+  flightEnquiryTitle.focus();
+});
+
+seatMaps.addEventListener("click", (event) => {
+  const button = event.target.closest(".seat-button");
+  if (!button || button.disabled) return;
+
+  const seats = selectedSeats.get(button.dataset.leg);
+  if (!seats) return;
+  const passengerCount = Number(passengerField.value);
+  if (seats.has(button.dataset.seat)) {
+    seats.delete(button.dataset.seat);
+    button.setAttribute("aria-pressed", "false");
+    button.classList.remove("selected");
+    updateSeatSelectionStatus();
+    return;
+  }
+  if (seats.size >= passengerCount) {
+    updateSeatSelectionStatus(`Choose no more than ${passengerCount} seat${passengerCount === 1 ? "" : "s"} for this booking.`);
+    return;
+  }
+  seats.add(button.dataset.seat);
+  button.setAttribute("aria-pressed", "true");
+  button.classList.add("selected");
+  updateSeatSelectionStatus();
 });
 
 reservationForm.addEventListener("submit", (event) => {
@@ -401,6 +711,20 @@ reservationForm.addEventListener("submit", (event) => {
     `Last name: ${lastName}`,
   ].join("\n");
   reservationMessage.hidden = false;
+  window.location.assign(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(request)}`);
+});
+
+document.getElementById("statusForm").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const statusForm = event.currentTarget;
+  const flightNumber = statusForm.elements.flightNumber.value.trim();
+  const flightDate = statusForm.elements.flightDate.value;
+  const request = [
+    "Hello Renegade Air, please check the status of this flight.",
+    `Flight number: ${flightNumber}`,
+    `Flight date: ${flightDate}`,
+  ].join("\n");
+  document.getElementById("statusMessage").hidden = false;
   window.location.assign(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(request)}`);
 });
 

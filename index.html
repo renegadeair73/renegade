@@ -145,6 +145,10 @@
             <svg aria-hidden="true" viewBox="0 0 30 34"><path d="M7 2h12l6 6v24H7zM19 2v7h6M11 15h10M11 20h10M11 25h7"></path></svg>
             <span>Find Reservation</span>
           </button>
+          <button class="booking-tab status-tab" id="statusTab" type="button" role="tab" aria-selected="false" aria-controls="statusPanel">
+            <svg aria-hidden="true" viewBox="0 0 30 34"><circle cx="15" cy="15" r="11"></circle><path d="M15 9v7l5 3M15 30h.01"></path></svg>
+            <span>Flight Status</span>
+          </button>
         </div>
 
         <section class="booking-panel" id="flightPanel" role="tabpanel" aria-labelledby="flightTab">
@@ -219,10 +223,6 @@
             </div>
 
             <button class="submit-button" type="submit">Find flights</button>
-            <p class="form-message" id="flightMessage" role="status" hidden>
-              <span id="flightMessageText">Opening WhatsApp with your flight request.</span>
-              <a href="https://wa.me/254762108773">Open WhatsApp</a>.
-            </p>
             <p class="form-message" id="couponMessage" role="status" hidden>
               <span id="couponMessageText">Enter a coupon code before checking.</span>
               <a href="https://wa.me/254762108773">Contact Renegade Air on WhatsApp</a>.
@@ -248,7 +248,108 @@
             </p>
           </form>
         </section>
+
+        <section class="booking-panel status-panel" id="statusPanel" role="tabpanel" aria-labelledby="statusTab" hidden>
+          <form class="status-form" id="statusForm">
+            <h1>Check Flight Status</h1>
+            <label class="status-field">
+              <span>Flight number</span>
+              <input name="flightNumber" type="text" autocomplete="off" placeholder="e.g. RG123" required />
+            </label>
+            <label class="status-field status-date-field">
+              <span>Flight date</span>
+              <input name="flightDate" type="date" required />
+            </label>
+            <button class="submit-button" type="submit">Check status</button>
+            <p class="form-message" id="statusMessage" role="status" hidden>
+              <span id="statusMessageText">Opening WhatsApp to confirm your flight status.</span>
+              <a href="https://wa.me/254762108773">Open WhatsApp</a>.
+            </p>
+          </form>
+        </section>
       </div>
+
+      <dialog class="booking-dialog" id="bookingDialog" aria-label="Flight booking">
+        <button class="booking-dialog-close" id="closeBookingDialog" type="button" aria-label="Close booking">×</button>
+        <section class="flight-results" id="flightResults" aria-labelledby="flightResultsTitle" hidden>
+          <div class="flight-results-header">
+            <div>
+              <p class="flight-results-label">Search results</p>
+              <h1 id="flightResultsTitle" tabindex="-1">Choose your flight</h1>
+              <p id="flightResultsSummary"></p>
+              <p class="flight-results-note">Sample schedules and estimated fares only. Renegade Air must confirm availability and the final fare.</p>
+            </div>
+            <button class="change-search-button" id="changeSearchButton" type="button">Change search</button>
+          </div>
+          <div class="flight-results-list" id="flightResultsList"></div>
+        </section>
+
+        <section class="flight-enquiry" id="flightEnquiry" aria-labelledby="flightEnquiryTitle" hidden>
+          <div class="flight-enquiry-header">
+            <div>
+              <p class="flight-enquiry-label">Step 1 of 2 · Passenger details</p>
+              <h1 id="flightEnquiryTitle" tabindex="-1">Complete your booking details</h1>
+              <p class="flight-enquiry-summary" id="flightEnquirySummary"></p>
+              <p class="flight-enquiry-fare" id="flightEnquiryFare"></p>
+            </div>
+            <button class="change-flight-button" id="changeFlightButton" type="button">Change flight</button>
+          </div>
+
+          <form class="flight-enquiry-form" id="flightEnquiryForm">
+            <div class="flight-enquiry-fields">
+              <label>
+                Lead passenger full name
+                <input name="fullName" type="text" autocomplete="name" required />
+              </label>
+              <label>
+                Phone or WhatsApp number
+                <input name="phone" type="tel" autocomplete="tel" required />
+              </label>
+              <label>
+                Email address
+                <input name="email" type="email" autocomplete="email" required />
+              </label>
+              <label>
+                Lead passenger ID or passport number
+                <input name="identification" type="text" autocomplete="off" required />
+              </label>
+              <label>
+                Lead passenger type
+                <select name="passengerType" required>
+                  <option value="" selected disabled>Select passenger type</option>
+                  <option value="Adult">Adult</option>
+                  <option value="Child">Child</option>
+                  <option value="Infant">Infant</option>
+                </select>
+              </label>
+              <label class="special-request-field">
+                Special request
+                <textarea name="specialRequest" rows="3"></textarea>
+              </label>
+            </div>
+
+            <p class="flight-enquiry-privacy">
+              Your ID or passport number is not included in the WhatsApp message. Only share it directly with Renegade Air through a verified, secure channel.
+            </p>
+            <button class="flight-enquiry-submit" type="submit">Continue to seat selection</button>
+          </form>
+        </section>
+
+        <section class="seat-selection" id="seatSelection" aria-labelledby="seatSelectionTitle" hidden>
+          <div class="seat-selection-header">
+            <div>
+              <p class="flight-enquiry-label">Step 2 of 2 · Choose your seats</p>
+              <h1 id="seatSelectionTitle" tabindex="-1">Choose your seat</h1>
+              <p id="seatSelectionSummary"></p>
+            </div>
+            <button class="change-flight-button" id="backToDetailsButton" type="button">Back to details</button>
+          </div>
+          <div class="seat-maps" id="seatMaps"></div>
+          <p class="seat-selection-status" id="seatSelectionStatus" role="status" aria-live="polite"></p>
+          <p class="seat-selection-note">This sends a booking request, not a confirmed ticket. Renegade Air will confirm availability and the final fare. Your ID or passport number is not included in the WhatsApp message.</p>
+          <a class="flight-enquiry-submit whatsapp-booking-link" id="confirmBookingButton" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true" tabindex="-1">Confirm booking request on WhatsApp</a>
+        </section>
+      </dialog>
 
       <section class="editorial-content" id="frequent-flyer" aria-label="Renegade Air updates">
         <article class="magazine" id="magazine">
