@@ -383,37 +383,49 @@ function getSeatSelectionId() {
 
 function updateBookingRequestLink() {
   const passengerCount = Number(passengerField.value);
-  const legs = getSeatLegs();
+  const fareQuote = calculateFareQuote();
   const seatChoices = selectedSeats.get(getSeatSelectionId());
   const hasAllSeats = seatChoices?.size === passengerCount;
   confirmBookingButton.setAttribute("aria-disabled", String(!hasAllSeats));
   confirmBookingButton.tabIndex = hasAllSeats ? 0 : -1;
-  if (!hasAllSeats || !selectedFlight) {
+  if (!hasAllSeats || !selectedFlight || !fareQuote) {
     confirmBookingButton.href = "#";
     return;
   }
 
   const enquiry = new FormData(flightEnquiryForm);
   const selectedSeatLabels = Array.from(seatChoices).join(", ");
-  const seats = legs
-    .map((leg) => `${leg.label}: ${selectedSeatLabels}`)
-    .join("\n");
+  const seats = tripType.value === "roundtrip"
+    ? `${selectedSeatLabels} (same seat selection for outbound and return)`
+    : selectedSeatLabels;
   const request = [
-    "Hello Renegade Air, I would like to request this booking.",
-    `Trip: ${flightEnquirySummary.textContent}`,
-    `Selected departure: ${selectedFlight.departure} - ${selectedFlight.arrival}`,
+    "Hello Renegade Air,",
+    "",
+    "I would like to request my booking:",
+    `Route: ${fromField.value} → ${toField.value}`,
+    `Depart: ${departDate.value} at ${selectedFlight.departure}`,
     ...(tripType.value === "roundtrip"
-      ? [`Selected return: ${selectedFlight.returnDeparture} - ${selectedFlight.returnArrival}`]
+      ? [`Return: ${returnDate.value} at ${selectedFlight.returnDeparture}`]
       : []),
-    `Passengers: ${passengerCount}`,
-    `Seats:\n${seats}`,
-    `Estimated fare: KSh ${formatFare(selectedFlight.total)} (estimate only)`,
-    `Full name: ${enquiry.get("fullName").toString().trim()}`,
-    `Phone or WhatsApp: ${enquiry.get("phone").toString().trim()}`,
-    `Email: ${enquiry.get("email").toString().trim()}`,
+    `Fare per passenger per journey (estimate): KSh ${formatFare(fareQuote.oneWayFare)}`,
+    `Journeys: ${fareQuote.legs}`,
+    `Passengers: ${passengerCount} Passenger${passengerCount === 1 ? "" : "s"}`,
+    `Total (estimate): KSh ${formatFare(fareQuote.total)}`,
+    `Seats: ${seats}`,
+    `Flight: Renegade Air (${selectedFlight.departure} - ${selectedFlight.arrival}, sample schedule)`,
+    ...(tripType.value === "roundtrip"
+      ? [`Return flight: Renegade Air (${selectedFlight.returnDeparture} - ${selectedFlight.returnArrival}, sample schedule)`]
+      : []),
+    "",
+    "Passenger details (lead passenger):",
+    `Name: ${enquiry.get("fullName").toString().trim()}`,
+    "ID/Passport: Please provide directly to Renegade Air through a verified, secure channel.",
     `Passenger type: ${enquiry.get("passengerType")}`,
-    `Special request: ${enquiry.get("specialRequest").toString().trim() || "None"}`,
-    "Please confirm availability and the final fare. This is not a confirmed ticket.",
+    `Phone: ${enquiry.get("phone").toString().trim()}`,
+    `Email: ${enquiry.get("email").toString().trim()}`,
+    `Special requests: ${enquiry.get("specialRequest").toString().trim() || "None"}`,
+    "",
+    "Please confirm availability and the final fare. This is a request, not a confirmed ticket.",
   ].join("\n");
   confirmBookingButton.href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(request)}`;
 }
